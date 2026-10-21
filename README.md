@@ -2,6 +2,8 @@
 
 Two n8n workflows that do a small business's lead handling with AI. Every new enquiry gets scored and answered within seconds, and the owner gets a daily report on what is selling and who to call first.
 
+**🌐 Live site:** [n8n-ai-marketing-automation.vercel.app](https://n8n-ai-marketing-automation.vercel.app). Try the AI lead scorer in your browser, and read the step-by-step [guide](https://n8n-ai-marketing-automation.vercel.app/guide).
+
 Built with **n8n**, **Google Gemini** (LLM with structured JSON output), **Brevo** (transactional email API) and **n8n Data Tables** (as a simple CRM).
 
 ---

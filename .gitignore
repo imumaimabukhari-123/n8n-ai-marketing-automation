@@ -5,3 +5,6 @@ _test*.json
 _t.py
 venv/
 .vercel/
+
+.vercel
+.env*
