@@ -3,3 +3,5 @@ __pycache__/
 .env
 _test*.json
 _t.py
+venv/
+.vercel/

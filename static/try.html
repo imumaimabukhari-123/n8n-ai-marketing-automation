@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Try It · AI Marketing Automation</title>
+  <meta name="description" content="Try the AI step of the n8n lead workflow: enter a lead and see its score, summary and the follow-up email the AI writes.">
+  <meta name="author" content="Syeda Umaima">
+  <link rel="icon" href="/static/icon.png">
+  <link rel="stylesheet" href="/static/site.css">
+  <style>
+    .wrap.narrow { max-width: 1000px; padding-bottom: 40px; }
+    .intro { padding: 44px 0 20px; }
+    .intro h1 { font-size: clamp(28px, 4vw, 38px); margin: 0 0 10px; letter-spacing: -0.02em; }
+    .intro p { color: var(--muted); font-size: 17px; margin: 0; }
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+    form.card { display: grid; gap: 14px; }
+    label { font-weight: 600; font-size: 14px; display: grid; gap: 6px; }
+    input, select, textarea { font: inherit; font-weight: 400; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); width: 100%; }
+    textarea { min-height: 130px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+    .samples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+    .samples button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+    .result { min-height: 200px; }
+    .empty { color: var(--muted); text-align: center; padding: 50px 10px; }
+    .head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+    .gauge { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .hot { background: #e03131; } .warm { background: #f08c00; } .cold { background: #868e96; }
+    .temp { font-size: 20px; font-weight: 700; text-transform: capitalize; }
+    .result h3 { font-size: 14px; color: var(--muted); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+    .mail { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; white-space: pre-line; }
+    .mail b { display: block; margin-bottom: 8px; }
+    .actions-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .err { color: #c92a2a; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><img class="brand-mark" src="/static/icon.png" alt=""><span>AI Marketing Automation</span></a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/try" class="active">Try it</a>
+        <a href="/guide">Guide</a>
+        <a href="/#developer">Developer</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap narrow">
+    <header class="intro">
+      <h1>Try the AI lead scorer</h1>
+      <p>This is the AI step from Workflow 1, with the same prompt. Enter a pretend lead and see the score, the summary
+         and the follow-up email. In the real workflow the email is sent automatically. Here nothing is sent.</p>
+    </header>
+
+    <div class="layout">
+      <form class="card" id="form">
+        <div class="samples">Try a sample:
+          <button type="button" data-s="0">🔥 Real estate agency</button>
+          <button type="button" data-s="1">🙂 Dental clinic</button>
+          <button type="button" data-s="2">🧊 Vague enquiry</button>
+        </div>
+        <div class="row">
+          <label>Name <input name="name" required maxlength="80" placeholder="e.g. Olivia Brooks"></label>
+          <label>Company <input name="company" maxlength="100" placeholder="e.g. Brooks Real Estate"></label>
+        </div>
+        <div class="row">
+          <label>What do they need?
+            <select name="service">
+              <option>Shopify store</option><option>AI chatbot</option><option selected>Workflow automation (n8n)</option>
+              <option>Chrome extension</option><option>Web app (MERN)</option><option>Something else</option>
+            </select>
+          </label>
+          <label>Budget
+            <select name="budget">
+              <option>Under $500</option><option selected>$500 - $2,000</option><option>$2,000 - $5,000</option><option>$5,000+</option>
+            </select>
+          </label>
+        </div>
+        <label>Their message <textarea name="message" required minlength="5" maxlength="1500" placeholder="What did the lead write in the contact form?"></textarea></label>
+        <button class="btn primary" type="submit" id="go">🤖 Score this lead</button>
+      </form>
+
+      <div class="card result" id="result" aria-live="polite">
+        <div class="empty">The AI's result will appear here.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-foot">
+    © 2026 Syeda Umaima · AI Marketing Automation ·
+    <a href="mailto:imumaimabukhari@gmail.com">imumaimabukhari@gmail.com</a> ·
+    <a href="https://www.fiverr.com/umaima886" target="_blank" rel="noopener">Fiverr</a>
+  </footer>
+
+  <script>
+    const SAMPLES = [
+      { name: 'Olivia Brooks', company: 'Brooks Real Estate', service: 'Workflow automation (n8n)', budget: '$5,000+',
+        message: 'We get about 200 property enquiries a week from 3 different websites. Right now an assistant copies them into our CRM by hand and replies the next day. We want every enquiry in the CRM automatically, an instant AI reply, and the lead assigned to the right agent.' },
+      { name: 'Priya Nair', company: 'Nair Dental Studio', service: 'AI chatbot', budget: '$500 - $2,000',
+        message: 'Patients keep calling to ask about opening hours, prices and whether we take their insurance. Could an AI chatbot on our website answer these questions?' },
+      { name: 'Tom', company: '', service: 'Something else', budget: 'Under $500', message: 'just looking, how much for a website' },
+    ];
+    const form = document.getElementById('form');
+    const result = document.getElementById('result');
+    const go = document.getElementById('go');
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    document.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
+      const s = SAMPLES[b.dataset.s];
+      for (const k in s) form.elements[k].value = s[k];
+    }));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = Object.fromEntries(new FormData(form));
+      go.disabled = true;
+      result.innerHTML = '<div class="empty"><div class="spinner"></div>Gemini is reading the lead…</div>';
+      try {
+        const r = await fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : 'Please check the form and try again.');
+        const t = ['hot', 'warm', 'cold'].includes(d.temperature) ? d.temperature : 'warm';
+        result.innerHTML = `
+          <div class="head"><div class="gauge ${t}">${esc(d.score)}</div>
+            <div><div class="temp">${t === 'hot' ? '🔥' : t === 'warm' ? '🙂' : '🧊'} ${t} lead</div>
+            <div style="color:var(--muted);font-size:14px">${t === 'hot' ? 'The owner gets an instant alert email.' : 'Saved to the CRM table for follow-up.'}</div></div></div>
+          <h3>Summary for the owner</h3><p style="margin:0">${esc(d.summary)}</p>
+          <h3>Follow-up email to the lead</h3>
+          <div class="mail"><b>Subject: ${esc(d.email_subject)}</b>${esc(d.email_body)}</div>
+          <div class="actions-row"><button class="btn" type="button" id="copy">Copy email</button></div>`;
+        document.getElementById('copy').onclick = (ev) => {
+          navigator.clipboard.writeText(`Subject: ${d.email_subject}\n\n${d.email_body}`);
+          ev.target.textContent = 'Copied ✓';
+        };
+      } catch (err) {
+        result.innerHTML = `<div class="empty err">${esc(err.message || 'Something went wrong. Please try again.')}</div>`;
+      } finally {
+        go.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

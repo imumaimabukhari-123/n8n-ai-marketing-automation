@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Marketing Automation</title>
+  <meta name="description" content="Two n8n workflows that score every new lead with AI, send a personal follow-up email in seconds, and email the owner a daily marketing report.">
+  <meta name="author" content="Syeda Umaima">
+  <link rel="icon" href="/static/icon.png">
+  <link rel="stylesheet" href="/static/site.css">
+  <style>
+    .hero { padding: 56px 0 28px; text-align: center; max-width: 820px; margin: 0 auto; }
+    .pill { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 20px; margin-bottom: 16px; }
+    .hero h1 { font-size: clamp(30px, 4.6vw, 46px); line-height: 1.12; margin: 0 0 16px; letter-spacing: -0.02em; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 18px; color: var(--muted); margin: 0 0 24px; }
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .canvas { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.18); display: block; }
+    .highlights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 32px 0 64px; }
+    @media (max-width: 760px) { .highlights { grid-template-columns: repeat(2, 1fr); } }
+    .highlight { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; text-align: center; }
+    .highlight b { display: block; font-size: 24px; line-height: 1.2; color: var(--accent); }
+    .highlight span { color: var(--muted); font-size: 13px; }
+    .wf-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .wf-head h2 { margin: 0; }
+    .tag { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); }
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 20px; }
+    .flow span { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 14px; }
+    .flow i { color: var(--muted); font-style: normal; }
+    .example { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+    @media (max-width: 760px) { .example { grid-template-columns: 1fr; } }
+    .bubble { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .bubble small { display: block; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .bubble p { margin: 0; white-space: pre-line; }
+    .score { display: inline-block; font-weight: 700; color: #fff; background: #e03131; border-radius: 6px; padding: 1px 8px; margin-right: 6px; }
+    .report { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; margin-top: 20px; }
+    @media (max-width: 760px) { .report { grid-template-columns: 1fr; } }
+    .report img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: #fff; }
+    .report ul { margin: 0; padding-left: 20px; }
+    .report li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><img class="brand-mark" src="/static/icon.png" alt=""><span>AI Marketing Automation</span></a>
+      <div class="nav-links">
+        <a href="/" class="active">Home</a>
+        <a href="/try">Try it</a>
+        <a href="/guide">Guide</a>
+        <a href="/#developer">Developer</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero">
+      <div class="pill">n8n workflows · Gemini AI · Brevo email</div>
+      <h1>Every new lead answered<br><span>in seconds, by AI.</span></h1>
+      <p>Two n8n workflows that handle a small business's leads on autopilot. AI scores each enquiry,
+         writes a personal reply and sends it, alerts you about hot leads, and emails you a marketing
+         report every morning.</p>
+      <div class="cta">
+        <a class="btn primary" href="/try">Try the AI lead scorer</a>
+        <a class="btn" href="https://github.com/imumaimabukhari-123/n8n-ai-marketing-automation" target="_blank" rel="noopener">View the code on GitHub</a>
+      </div>
+    </header>
+
+    <img class="canvas" src="/docs-img/workflow-1.png" width="1330" height="643" alt="The AI Lead Follow-up workflow in the n8n editor: lead form, AI scoring, follow-up email, CRM table and hot-lead alert">
+
+    <div class="highlights">
+      <div class="highlight"><b>&lt; 10 s</b><span>from form to personal reply</span></div>
+      <div class="highlight"><b>0–100</b><span>AI score for every lead</span></div>
+      <div class="highlight"><b>15</b><span>n8n steps across 2 workflows</span></div>
+      <div class="highlight"><b>9 AM</b><span>daily report in your inbox</span></div>
+    </div>
+
+    <section id="workflow-1">
+      <div class="wf-head"><h2>Workflow 1: AI Lead Follow-up</h2><span class="tag">Form trigger</span></div>
+      <p class="sub">Runs every time someone fills in the contact form.</p>
+      <div class="flow">
+        <span>📝 Lead form</span><i>→</i><span>🤖 Gemini scores the lead &amp; writes an email</span><i>→</i>
+        <span>✉️ Brevo sends it</span><i>→</i><span>🗂️ Saved to the CRM table</span><i>→</i><span>🔥 Hot? Alert the owner</span>
+      </div>
+      <div class="example">
+        <div class="bubble"><small>📝 A lead fills in the form</small><p><b>Sarah Mitchell, Bright Bloom Skincare</b>
+Service: Workflow automation (n8n) · Budget: $2,000 – $5,000
+
+"We run a Shopify skincare store in Melbourne (about 300 orders a month). Our team spends hours every week replying to the same customer emails and copying orders into a spreadsheet. We want to automate this with AI and start next month."</p></div>
+        <div class="bubble"><small>🤖 What the AI did (real output)</small><p><span class="score">90</span><b>hot lead</b>
+
+<b>Summary:</b> Melbourne-based Shopify store looking to automate customer support emails and order tracking using n8n.
+
+<b>Email sent to Sarah:</b> "Hi Sarah, it sounds like your team is spending too much valuable time on repetitive tasks… we can set up an n8n workflow that automatically logs orders into your spreadsheet and uses AI to draft instant replies to common customer questions… Do you have 15 minutes for a quick call this Tuesday or Wednesday? Best, Umaima"</p></div>
+      </div>
+    </section>
+
+    <section id="workflow-2">
+      <div class="wf-head"><h2>Workflow 2: Daily AI Marketing Report</h2><span class="tag">Every morning at 9</span></div>
+      <p class="sub">The owner starts the day knowing exactly who to call and what's selling.</p>
+      <div class="flow">
+        <span>⏰ Schedule</span><i>→</i><span>🗂️ Get all leads</span><i>→</i><span>🧮 Weekly numbers</span><i>→</i>
+        <span>🤖 Gemini: insights &amp; actions</span><i>→</i><span>📊 HTML report</span><i>→</i><span>✉️ Email</span>
+      </div>
+      <img class="canvas" src="/docs-img/workflow-2.png" width="1332" height="610" alt="The Daily AI Marketing Report workflow in the n8n editor">
+      <div class="report">
+        <img src="/docs-img/report-email.png" width="700" height="1460" alt="The daily report email with lead numbers, AI insights and actions">
+        <div>
+          <h3>What's in the report</h3>
+          <ul>
+            <li><b>KPI tiles:</b> new leads, hot / warm / cold, average score.</li>
+            <li><b>What the numbers show:</b> 3 AI insights, e.g. "Workflow automation is the most requested service."</li>
+            <li><b>What to do this week:</b> 3 concrete actions, e.g. "Call Olivia Brooks first: score 95, large budget."</li>
+            <li><b>Top leads</b> with their AI summaries, plus services and budgets requested.</li>
+          </ul>
+          <p class="tip">The numbers are calculated in code, so they're always exact. The AI only explains them and suggests next steps.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2>How it's built</h2>
+      <p class="sub">Production habits, not just a demo.</p>
+      <div class="grid three">
+        <div class="card"><div class="icon">🧩</div><h3>Structured AI output</h3><p>Gemini answers through a JSON response schema, so every result has the same fields. No fragile text parsing.</p></div>
+        <div class="card"><div class="icon">🔐</div><h3>Credentials kept safe</h3><p>API keys live in n8n's encrypted credential store, never inside the workflow files.</p></div>
+        <div class="card"><div class="icon">🔁</div><h3>Retries</h3><p>The AI step retries automatically if the API is busy, so leads are never lost.</p></div>
+        <div class="card"><div class="icon">🗂️</div><h3>Built-in CRM</h3><p>Every lead, score, summary and email is stored in an n8n Data Table for follow-up and reporting.</p></div>
+        <div class="card"><div class="icon">🔥</div><h3>Smart routing</h3><p>An IF step sends the owner an instant alert only for hot leads, so nobody important waits.</p></div>
+        <div class="card"><div class="icon">🌏</div><h3>Timezone-aware</h3><p>The report runs at 9 AM in the business's own timezone.</p></div>
+      </div>
+    </section>
+
+    <section id="tech">
+      <h2>Built with</h2>
+      <p class="sub">Free tools only.</p>
+      <div class="chips">
+        <span class="chip"><b>n8n</b> workflow automation</span>
+        <span class="chip"><b>Gemini</b> AI (free tier)</span>
+        <span class="chip"><b>Brevo</b> email API</span>
+        <span class="chip"><b>n8n Data Tables</b> CRM</span>
+        <span class="chip"><b>JavaScript</b> Code nodes</span>
+        <span class="chip"><b>Python</b> + FastAPI (this site)</span>
+      </div>
+    </section>
+
+    <section id="developer">
+      <h2>Developer</h2>
+      <p class="sub">Who built this project, and how to work with me.</p>
+      <div class="dev-card">
+        <div class="avatar">SU</div>
+        <div class="dev-text">
+          <h3>Syeda Umaima</h3>
+          <p class="role">Software engineer · AI automations, Shopify stores, Chrome extensions and web apps</p>
+          <p class="pitch">I build n8n automations and AI tools like this one. Want your leads, emails, orders or
+             reports to run on autopilot? I can build it for your business.</p>
+          <div class="dev-buttons">
+            <a class="btn primary" href="https://www.fiverr.com/umaima886" target="_blank" rel="noopener">Hire me on Fiverr</a>
+            <a class="btn" href="mailto:imumaimabukhari@gmail.com?subject=Automation%20project">✉ Email me</a>
+            <a class="btn" href="https://github.com/imumaimabukhari-123" target="_blank" rel="noopener">GitHub</a>
+          </div>
+          <ul class="contact">
+            <li>✉️ Email: <a href="mailto:imumaimabukhari@gmail.com">imumaimabukhari@gmail.com</a></li>
+            <li>💼 Fiverr: <a href="https://www.fiverr.com/umaima886" target="_blank" rel="noopener">fiverr.com/umaima886</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="site-foot">
+    © 2026 Syeda Umaima · AI Marketing Automation ·
+    <a href="mailto:imumaimabukhari@gmail.com">imumaimabukhari@gmail.com</a> ·
+    <a href="https://www.fiverr.com/umaima886" target="_blank" rel="noopener">Fiverr</a> ·
+    <a href="https://github.com/imumaimabukhari-123/n8n-ai-marketing-automation" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+</body>
+</html>
