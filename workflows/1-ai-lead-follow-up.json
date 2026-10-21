@@ -1,0 +1,368 @@
+{
+  "name": "1. AI Lead Follow-up",
+  "nodes": [
+    {
+      "id": "form",
+      "name": "Lead form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "a1c3e5f7-lead-form-0001",
+      "parameters": {
+        "formTitle": "Work with Umaima",
+        "formDescription": "Tell me about your project and I'll get back to you with ideas within 24 hours.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Company"
+            },
+            {
+              "fieldLabel": "Website"
+            },
+            {
+              "fieldLabel": "What do you need help with?",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Shopify store"
+                  },
+                  {
+                    "option": "AI chatbot"
+                  },
+                  {
+                    "option": "Workflow automation (n8n)"
+                  },
+                  {
+                    "option": "Chrome extension"
+                  },
+                  {
+                    "option": "Web app (MERN)"
+                  },
+                  {
+                    "option": "Something else"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Budget",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Under $500"
+                  },
+                  {
+                    "option": "$500 - $2,000"
+                  },
+                  {
+                    "option": "$2,000 - $5,000"
+                  },
+                  {
+                    "option": "$5,000+"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Tell me about your project",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Thank you! Check your inbox, you'll hear from me shortly."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "prep",
+      "name": "Prepare lead for AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// Turn the form answers into a clean lead + the Gemini request body\nconst f = $input.first().json;\nconst lead = {\n  name: f['Full name'] || '',\n  email: f['Email'] || '',\n  company: f['Company'] || '',\n  website: f['Website'] || '',\n  service: f['What do you need help with?'] || '',\n  budget: f['Budget'] || '',\n  message: f['Tell me about your project'] || '',\n};\n\nconst prompt = `You are the sales assistant for Syeda Umaima, a software engineer who builds\nShopify stores, AI chatbots, AI automations (n8n), Chrome extensions and MERN web apps.\n\nA new lead filled in the contact form:\n${JSON.stringify(lead, null, 2)}\n\n1. Score the lead from 0 to 100 (budget, clear need, fit with her services, real business).\n2. temperature: \"hot\" (70+), \"warm\" (40-69) or \"cold\" (under 40).\n3. summary: one sentence for Umaima about this lead.\n4. Write a short, warm, personal follow-up email FROM Umaima TO the lead:\n   mention their project, suggest one concrete idea, invite them to a 15-minute call.\n   Plain text, max 120 words, sign off as \"Umaima\". No placeholders.`;\n\nconst gemini_body = {\n  contents: [{ parts: [{ text: prompt }] }],\n  generationConfig: {\n    responseMimeType: 'application/json',\n    responseSchema: {\n      type: 'OBJECT',\n      properties: {\n        score: { type: 'INTEGER' },\n        temperature: { type: 'STRING', enum: ['hot', 'warm', 'cold'] },\n        summary: { type: 'STRING' },\n        email_subject: { type: 'STRING' },\n        email_body: { type: 'STRING' },\n      },\n      required: ['score', 'temperature', 'summary', 'email_subject', 'email_body'],\n    },\n  },\n};\n\nreturn [{ json: { ...lead, gemini_body } }];\n"
+      }
+    },
+    {
+      "id": "ai",
+      "name": "Gemini: score lead & write email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0b3qNZ6U23YbsHLW",
+          "name": "Gemini API key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "parse",
+      "name": "Read AI result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// Read Gemini's JSON answer and combine it with the lead\nconst lead = $('Prepare lead for AI').first().json;\nconst text = $input.first().json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\nconst ai = JSON.parse(text);\nconst { gemini_body, ...clean } = lead;\nreturn [{ json: {\n  ...clean,\n  score: ai.score,\n  temperature: ai.temperature,\n  summary: ai.summary,\n  email_subject: ai.email_subject,\n  email_body: ai.email_body,\n  email_sent: false,\n} }];\n"
+      }
+    },
+    {
+      "id": "send",
+      "name": "Send follow-up email (Brevo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Alvats37x7xVNFq5",
+          "name": "Brevo API key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ sender: {\"name\": \"Umaima\", \"email\": \"imumaimabukhari@gmail.com\"}, to: [{ email: $json.email, name: $json.name }], subject: $json.email_subject, textContent: $json.email_body }) }}"
+      }
+    },
+    {
+      "id": "mark",
+      "name": "Mark as emailed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// The email went out: mark the lead as contacted before saving it\nconst lead = $('Read AI result').first().json;\nreturn [{ json: { ...lead, email_sent: true } }];\n"
+      }
+    },
+    {
+      "id": "save",
+      "name": "Save lead to CRM table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "P53QUryYybnviIgL"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        }
+      }
+    },
+    {
+      "id": "hot",
+      "name": "Is it a hot lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.temperature }}",
+              "rightValue": "hot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "alert",
+      "name": "Alert Umaima about hot lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Alvats37x7xVNFq5",
+          "name": "Brevo API key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ sender: {\"name\": \"Umaima\", \"email\": \"imumaimabukhari@gmail.com\"}, to: [{\"name\": \"Umaima\", \"email\": \"imumaimabukhari@gmail.com\"}], subject: '\ud83d\udd25 Hot lead: ' + $json.name + ' (' + $json.score + '/100)', textContent: 'New hot lead!\\n\\n' + $json.summary + '\\n\\nName: ' + $json.name + '\\nEmail: ' + $json.email + '\\nCompany: ' + $json.company + '\\nService: ' + $json.service + '\\nBudget: ' + $json.budget + '\\n\\nTheir message:\\n' + $json.message + '\\n\\nA follow-up email was already sent to them.' }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Lead form": {
+      "main": [
+        [
+          {
+            "node": "Prepare lead for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare lead for AI": {
+      "main": [
+        [
+          {
+            "node": "Gemini: score lead & write email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: score lead & write email": {
+      "main": [
+        [
+          {
+            "node": "Read AI result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read AI result": {
+      "main": [
+        [
+          {
+            "node": "Send follow-up email (Brevo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send follow-up email (Brevo)": {
+      "main": [
+        [
+          {
+            "node": "Mark as emailed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as emailed": {
+      "main": [
+        [
+          {
+            "node": "Save lead to CRM table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save lead to CRM table": {
+      "main": [
+        [
+          {
+            "node": "Is it a hot lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it a hot lead?": {
+      "main": [
+        [
+          {
+            "node": "Alert Umaima about hot lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "name": "2. Daily AI Marketing Report",
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Every morning at 9",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get",
+      "name": "Get all leads",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "alwaysOutputData": true,
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "P53QUryYybnviIgL"
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "id": "stats",
+      "name": "Calculate weekly numbers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// Work out the numbers for the last 7 days and build the Gemini request\nconst DAYS = 7;\nconst since = Date.now() - DAYS * 24 * 60 * 60 * 1000;\nconst leads = $input.all().map(i => i.json)\n  .filter(l => new Date(l.createdAt).getTime() >= since);\n\nconst count = (key) => leads.reduce((acc, l) => {\n  const k = l[key] || 'Not given';\n  acc[k] = (acc[k] || 0) + 1;\n  return acc;\n}, {});\n\nconst stats = {\n  period: `last ${DAYS} days`,\n  total_leads: leads.length,\n  by_temperature: count('temperature'),\n  by_service: count('service'),\n  by_budget: count('budget'),\n  average_score: leads.length ? Math.round(leads.reduce((s, l) => s + (l.score || 0), 0) / leads.length) : 0,\n  follow_ups_sent: leads.filter(l => l.email_sent).length,\n  top_leads: [...leads].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3)\n    .map(l => ({ name: l.name, company: l.company, score: l.score, service: l.service, summary: l.summary })),\n};\n\nconst prompt = `You are a marketing analyst for Syeda Umaima, a freelance software engineer\n(Shopify stores, AI chatbots, n8n automations, Chrome extensions, MERN web apps).\n\nHere are her lead numbers for the ${stats.period}:\n${JSON.stringify(stats, null, 2)}\n\nWrite a short, practical report for her:\n- headline: one sentence on how the week went\n- insights: 3 short bullet points about what the numbers show (which services are in demand, lead quality, budgets)\n- actions: 3 concrete things she should do this week (e.g. who to call first, what to post about, which gig to promote)\nBe specific and use the numbers. Simple English.`;\n\nconst gemini_body = {\n  contents: [{ parts: [{ text: prompt }] }],\n  generationConfig: {\n    responseMimeType: 'application/json',\n    responseSchema: {\n      type: 'OBJECT',\n      properties: {\n        headline: { type: 'STRING' },\n        insights: { type: 'ARRAY', items: { type: 'STRING' } },\n        actions: { type: 'ARRAY', items: { type: 'STRING' } },\n      },\n      required: ['headline', 'insights', 'actions'],\n    },\n  },\n};\n\nreturn [{ json: { stats, gemini_body } }];\n"
+      }
+    },
+    {
+      "id": "ai",
+      "name": "Gemini: analyse & recommend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0b3qNZ6U23YbsHLW",
+          "name": "Gemini API key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "html",
+      "name": "Build report email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// Turn the numbers + AI analysis into a clean HTML email\nconst { stats } = $('Calculate weekly numbers').first().json;\nconst text = $input.first().json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\nconst ai = JSON.parse(text);\n\nconst esc = (s) => String(s ?? '').replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));\nconst list = (items) => '<ul>' + items.map(i => `<li style=\"margin-bottom:6px\">${esc(i)}</li>`).join('') + '</ul>';\nconst t = stats.by_temperature;\nconst tile = (label, value, color) =>\n  `<td style=\"padding:12px;background:#f4f6fb;border-radius:8px;text-align:center\">\n     <div style=\"font-size:24px;font-weight:700;color:${color}\">${value}</div>\n     <div style=\"font-size:12px;color:#555\">${label}</div></td>`;\nconst rows = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])\n  .map(([k, v]) => `<tr><td style=\"padding:4px 12px 4px 0\">${esc(k)}</td><td><b>${v}</b></td></tr>`).join('');\n\nconst html = `\n<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:620px;margin:auto;color:#222\">\n  <h2 style=\"margin-bottom:4px\">📊 Your marketing report</h2>\n  <div style=\"color:#666;margin-bottom:16px\">Leads from the ${esc(stats.period)}</div>\n  <p style=\"font-size:16px\"><b>${esc(ai.headline)}</b></p>\n  <table cellspacing=\"8\" style=\"width:100%\"><tr>\n    ${tile('New leads', stats.total_leads, '#3b5bdb')}\n    ${tile('Hot', t.hot || 0, '#e03131')}\n    ${tile('Warm', t.warm || 0, '#f08c00')}\n    ${tile('Cold', t.cold || 0, '#868e96')}\n    ${tile('Avg score', stats.average_score, '#2f9e44')}\n  </tr></table>\n  <h3>What the numbers show</h3>${list(ai.insights || [])}\n  <h3>What to do this week</h3>${list(ai.actions || [])}\n  <h3>Top leads</h3>\n  <ol>${stats.top_leads.map(l => `<li><b>${esc(l.name)}</b>${l.company ? ' (' + esc(l.company) + ')' : ''}, ${l.score}/100, ${esc(l.service)}<br><span style=\"color:#555\">${esc(l.summary)}</span></li>`).join('')}</ol>\n  <h3>Services requested</h3><table>${rows(stats.by_service)}</table>\n  <h3>Budgets</h3><table>${rows(stats.by_budget)}</table>\n  <p style=\"color:#999;font-size:12px;margin-top:24px\">Sent automatically by your n8n workflow. Follow-up emails sent: ${stats.follow_ups_sent}.</p>\n</div>`;\n\nreturn [{ json: { subject: '📊 Weekly leads report: ' + ai.headline, html } }];\n"
+      }
+    },
+    {
+      "id": "send",
+      "name": "Email report to Umaima (Brevo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Alvats37x7xVNFq5",
+          "name": "Brevo API key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ sender: {\"name\": \"Umaima\", \"email\": \"imumaimabukhari@gmail.com\"}, to: [{\"name\": \"Umaima\", \"email\": \"imumaimabukhari@gmail.com\"}], subject: $json.subject, htmlContent: $json.html }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Every morning at 9": {
+      "main": [
+        [
+          {
+            "node": "Get all leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all leads": {
+      "main": [
+        [
+          {
+            "node": "Calculate weekly numbers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate weekly numbers": {
+      "main": [
+        [
+          {
+            "node": "Gemini: analyse & recommend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: analyse & recommend": {
+      "main": [
+        [
+          {
+            "node": "Build report email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report email": {
+      "main": [
+        [
+          {
+            "node": "Email report to Umaima (Brevo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Karachi"
+  }
+}
