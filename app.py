@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 PORT = int(os.getenv("PORT", "8006"))
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+RETRY_STATUS = (429, 500, 502, 503, 504)  # Gemini busy / overloaded - worth retrying
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -108,17 +109,23 @@ def score_lead(lead: Lead) -> dict:
         "contents": [{"parts": [{"text": build_prompt(lead)}]}],
         "generationConfig": {"responseMimeType": "application/json", "responseSchema": SCHEMA, "temperature": 0.4},
     }
-    for wait in (2, 5, 0):
+    # Free Gemini tiers are sometimes busy (429) or overloaded (500/502/503/504): wait and try again,
+    # within a time budget that stays under the 60 s Vercel limit.
+    deadline = time.monotonic() + 50
+    for wait in (2, 5, 10, 0):
         try:
-            resp = requests.post(GEMINI_URL, json=payload, timeout=45,
+            resp = requests.post(GEMINI_URL, json=payload, timeout=max(5, min(45, deadline - time.monotonic())),
                                  headers={"x-goog-api-key": API_KEY, "Content-Type": "application/json"})
         except requests.RequestException:
+            if wait and time.monotonic() + wait < deadline:
+                time.sleep(wait)
+                continue
             raise HTTPException(502, "Couldn't reach the AI service. Please try again.")
-        if resp.status_code == 429 and wait:
+        if resp.status_code in RETRY_STATUS and wait and time.monotonic() + wait < deadline:
             time.sleep(wait)
             continue
-        if resp.status_code == 429:
-            raise HTTPException(503, "The free AI quota is busy right now. Please wait a minute and try again.")
+        if resp.status_code in RETRY_STATUS:
+            raise HTTPException(503, "The AI service is busy right now. Please wait a few seconds and try again.")
         if not resp.ok:
             raise HTTPException(502, f"The AI service returned an error ({resp.status_code}).")
         try:
